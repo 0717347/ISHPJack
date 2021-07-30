@@ -14,8 +14,18 @@
 RTC_PCF8523 rtc;
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
+#include "FS.h"
 // EINK
 #include "Adafruit_ThinkInk.h"
+//SD libraries
+#include <SPI.h>
+#include <SD.h>
+//MotorshieldStuff
+#include <Adafruit_MotorShield.h>
+Adafruit_MotorShield AFMS = Adafruit_MotorShield();
+Adafruit_DCMotor *myMotor = AFMS.getMotor(4);
+
+
 
 #define EPD_CS      15
 #define EPD_DC      33
@@ -25,6 +35,20 @@ char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursd
 
 // 2.13" Monochrome displays with 250x122 pixels and SSD1675 chipset
 ThinkInk_213_Mono_B72 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
+
+void setupSD() {
+  if (!SD.begin()) {
+    Serial.println("Card Mount Failed");
+    return;
+  }
+  uint8_t cardType = SD.cardType();
+
+  if (cardType == CARD_NONE) {
+    Serial.println("No SD card attached");
+    return;
+  }
+  Serial.println("SD Started");
+}
 
 void setup() {
   Serial.begin(9600);
@@ -47,6 +71,7 @@ void setup() {
   //EINK
   display.begin(THINKINK_MONO);
   display.clearBuffer();
+  setupSD();
 }
 
 void loop() {
@@ -103,4 +128,52 @@ String getDateTimeAsString() {
   sprintf(humanReadableDate, "%02d:%02d:%02d %02d/%02d/%02d",  now.hour(), now.minute(), now.second(), now.day(), now.month(), now.year());
 
   return humanReadableDate;
+}
+
+
+void logEvent(String dataToLog) {
+  /*
+     Log entries to a file on an SD card.
+  */
+  // Get the updated/current time
+  DateTime rightNow = rtc.now();
+
+ File logFile = SD.open("/logEvents.csv", FILE_APPEND);
+  if (!logFile) {
+    Serial.print("Couldn't create log file");
+    abort();
+  }
+
+  // Log the event with the date, time and data
+  logFile.print(rightNow.year(), DEC);
+  logFile.print(",");
+  logFile.print(rightNow.month(), DEC);
+  logFile.print(",");
+  logFile.print(rightNow.day(), DEC);
+  logFile.print(",");
+  logFile.print(rightNow.hour(), DEC);
+  logFile.print(",");
+  logFile.print(rightNow.minute(), DEC);
+  logFile.print(",");
+  logFile.print(rightNow.second(), DEC);
+  logFile.print(",");
+  logFile.print(dataToLog);
+
+  // End the line with a return character.
+  logFile.println();
+  logFile.close();
+  Serial.print("Event Logged: ");
+  Serial.print(rightNow.year(), DEC);
+  Serial.print(",");
+  Serial.print(rightNow.month(), DEC);
+  Serial.print(",");
+  Serial.print(rightNow.day(), DEC);
+  Serial.print(",");
+  Serial.print(rightNow.hour(), DEC);
+  Serial.print(",");
+  Serial.print(rightNow.minute(), DEC);
+  Serial.print(",");
+  Serial.print(rightNow.second(), DEC);
+  Serial.print(",");
+  Serial.println(dataToLog);
 }
