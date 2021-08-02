@@ -8,6 +8,8 @@
   MIT license, all text above must be included in any redistribution
  ****************************************************/
 
+int WaterVal = 0;
+const int SoilPin = 12;
 // RTC
 #include "RTClib.h"
 
@@ -51,6 +53,9 @@ void setupSD() {
 }
 
 void setup() {
+
+  pinMode(SoilPin, INPUT);
+
   Serial.begin(9600);
   while (!Serial) {
     delay(10);
@@ -131,6 +136,15 @@ String getDateTimeAsString() {
 }
 
 
+int readSoil() {
+  WaterVal = analogRead(SoilPin);
+  delay(10);
+  Serial.print("Soil Moisture = ");
+  //get soil moisture value from the function below and print it
+  Serial.println(readSoil());
+  return WaterVal;
+}
+
 void logEvent(String dataToLog) {
   /*
      Log entries to a file on an SD card.
@@ -138,7 +152,7 @@ void logEvent(String dataToLog) {
   // Get the updated/current time
   DateTime rightNow = rtc.now();
 
- File logFile = SD.open("/logEvents.csv", FILE_APPEND);
+  File logFile = SD.open("/logEvents.csv", FILE_APPEND);
   if (!logFile) {
     Serial.print("Couldn't create log file");
     abort();
