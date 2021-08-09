@@ -28,7 +28,7 @@ Adafruit_MotorShield AFMS = Adafruit_MotorShield();
 Adafruit_DCMotor *myMotor = AFMS.getMotor(4);
 
 
-
+//Set defines for EInk feather
 #define EPD_CS      15
 #define EPD_DC      33
 #define SRAM_CS     32
@@ -38,6 +38,7 @@ Adafruit_DCMotor *myMotor = AFMS.getMotor(4);
 // 2.13" Monochrome displays with 250x122 pixels and SSD1675 chipset
 ThinkInk_213_Mono_B72 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 
+//Set up the SD card
 void setupSD() {
   if (!SD.begin()) {
     Serial.println("Card Mount Failed");
@@ -45,7 +46,7 @@ void setupSD() {
   }
   uint8_t cardType = SD.cardType();
 
-  if (cardType == CARD_NONE) {
+  if (cardType == CARD_NONE) { 
     Serial.println("No SD card attached");
     return;
   }
@@ -53,7 +54,7 @@ void setupSD() {
 }
 
 void setup() {
-
+  //Tell the board to accept input from the soil moisture sensor
   pinMode(SoilPin, INPUT);
 
   Serial.begin(9600);
