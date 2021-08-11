@@ -46,7 +46,7 @@ void setupSD() {
   }
   uint8_t cardType = SD.cardType();
 
-  if (cardType == CARD_NONE) { 
+  if (cardType == CARD_NONE) {
     Serial.println("No SD card attached");
     return;
   }
@@ -81,7 +81,11 @@ void setup() {
 }
 
 void loop() {
+  updateScreen();
+  readSoil();
+}
 
+void updateScreen() {
   // Gets the current date and time, and writes it to the Eink display.
   String currentTime = getDateTimeAsString();
 
@@ -96,7 +100,6 @@ void loop() {
 
   // waits 180 seconds (3 minutes) as per guidelines from adafruit.
   delay(180000);
-  display.clearBuffer();
 }
 
 void drawText(String text, uint16_t color, int textSize, int x, int y) {
@@ -137,13 +140,12 @@ String getDateTimeAsString() {
 }
 
 
-int readSoil() {
+void readSoil() {
   WaterVal = analogRead(SoilPin);
-  delay(10);
+  delay(1200);
   Serial.print("Soil Moisture = ");
   //get soil moisture value from the function below and print it
-  Serial.println(readSoil());
-  return WaterVal;
+  Serial.println(WaterVal);
 }
 
 void logEvent(String dataToLog) {
