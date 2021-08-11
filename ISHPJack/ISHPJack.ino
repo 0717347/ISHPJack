@@ -98,7 +98,7 @@ void updateScreen() {
   display.drawLine(0, 50, 250, 50, EPD_BLACK);
   display.display();
 
-  // waits 180 seconds (3 minutes) as per guidelines from adafruit.
+  // waits 180 seconds (3 minutes) as per guidelines from adafruit. This delays loop() by 3 minutes. Hmm.
   delay(180000);
 }
 
