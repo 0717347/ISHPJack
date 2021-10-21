@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<head>
+    <style>
+    .grid-container {
+        display: grid;
+      }
+      .grid-item {
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(59, 16, 41, 0.8);
+  padding: 20px;
+  font-size: 30px;
+  text-align: center;
+      }
+      </style>
+
+</head>
+<body>
+    
+    <div class="grid-container">
+        <div class="grid-item">It is currently %DateTime%</div> <!-- Variables should be in lower case -->
+        <div class="grid-item">The Moisture Sensor Currently reads the value %MoistureVal%</div>
+        <div class="grid-item">The water pump is currently %PumpState%. Would you like to (Activate it)?</div> <!-- ToDo: Link to Pump -->
+        <div class="grid-item">The most recent code input on the PIN pad was %RecentPin%.</div> 
+        <div class="grid-item">5</div>
+        <div class="grid-item">6</div>
+      </div>
+</body>
