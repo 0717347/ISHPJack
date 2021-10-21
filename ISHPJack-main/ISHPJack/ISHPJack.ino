@@ -20,7 +20,7 @@ char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursd
 
 #include "FS.h"
 // EINK
-//#include "Adafruit_ThinkInk.h"
+#include "Adafruit_ThinkInk.h"
 //SD libraries
 //#include <SPI.h>
 //#include <SD.h>
@@ -44,7 +44,7 @@ const char* WebsiteUsername = "Password";
 const char* WebsitePassword = "Username";
 
 String loginIndex, serverIndex;
-WebServer server(80);
+
 
 
 //Set defines for EInk feather
@@ -58,7 +58,7 @@ WebServer server(80);
 ThinkInk_213_Mono_B72 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 
 //Set up the SD card
-/* 
+/*
   void setupSD() {
   if (!SD.begin()) {
     Serial.println("Card Mount Failed");
@@ -71,7 +71,7 @@ ThinkInk_213_Mono_B72 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
     return;
   }
   Serial.println("SD Started");
-}
+  }
 */
 void setup() {
   //Tell the board to accept input from the soil moisture sensor
@@ -97,7 +97,7 @@ void setup() {
   //EINK
   display.begin(THINKINK_MONO);
   display.clearBuffer();
-  setupSD();
+
   // Connect to WiFi network
   WiFi.begin(ssid, password);
   Serial.println("");
@@ -112,19 +112,9 @@ void setup() {
   Serial.println(ssid);
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
-  loadHTML();
-  // Webserver
-  /*use mdns for host name resolution*/
-  if (!MDNS.begin(host)) { //http://esp32.local
-    Serial.println("Error setting up MDNS responder!");
-    while (1) {
-      delay(1000);
-    }
-  }
-  Serial.println("mDNS responder started");
-  /*return index page which is stored in serverIndex */
 
-server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
+
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
     Serial.println("index");
     request->send(SPIFFS, "/index.html", "text/html");
   });
@@ -136,11 +126,12 @@ server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
     Serial.println("output");
     request->send(SPIFFS, "/logEvents.csv", "text/html", true);
   });
-  
+}
+
 void loop() {
   updateScreen();
   readSoil();
- // server.handleClient();
+  // server.handleClient();
 }
 
 void updateScreen() {
@@ -208,30 +199,6 @@ void readSoil() {
 }
 
 
-String readFile(fs::FS &fs, const char * path) {
-  Serial.printf("Reading file: %s\n", path);
-  char c;
-  String tempHTML = "";
-
-  File file = fs.open(path);
-  if (!file) {
-    Serial.print("Failed to open file for reading: ");
-    Serial.println(path);
-    return "";
-  }
-
-  while (file.available()) {
-    c = file.read();
-    tempHTML += c;
-  }
-  file.close();
-  return tempHTML;
-}
-
-void loadHTML() {
-  serverIndex = readFile(SD, "/serverIndex.html");
-  loginIndex = readFile(SD, "/loginIndex.html");
-}
 
 void logEvent(String dataToLog) {
   /*
@@ -257,7 +224,7 @@ void logEvent(String dataToLog) {
 }
 
 // SPIFFS file functions
-void readFile(fs::FS &fs, const char * path) {
+void readFile(fs::FS & fs, const char * path) {
   Serial.printf("Reading file: %s\r\n", path);
 
   File file = fs.open(path);
@@ -273,7 +240,7 @@ void readFile(fs::FS &fs, const char * path) {
   file.close();
 }
 
-void writeFile(fs::FS &fs, const char * path, const char * message) {
+void writeFile(fs::FS & fs, const char * path, const char * message) {
   Serial.printf("Writing file: %s\r\n", path);
 
   File file = fs.open(path, FILE_WRITE);
@@ -289,7 +256,7 @@ void writeFile(fs::FS &fs, const char * path, const char * message) {
   file.close();
 }
 
-void appendFile(fs::FS &fs, const char * path, const char * message) {
+void appendFile(fs::FS & fs, const char * path, const char * message) {
   Serial.printf("Appending to file: %s\r\n", path);
 
   File file = fs.open(path, FILE_APPEND);
@@ -305,7 +272,7 @@ void appendFile(fs::FS &fs, const char * path, const char * message) {
   file.close();
 }
 
-void renameFile(fs::FS &fs, const char * path1, const char * path2) {
+void renameFile(fs::FS & fs, const char * path1, const char * path2) {
   Serial.printf("Renaming file %s to %s\r\n", path1, path2);
   if (fs.rename(path1, path2)) {
     Serial.println("- file renamed");
@@ -314,7 +281,7 @@ void renameFile(fs::FS &fs, const char * path1, const char * path2) {
   }
 }
 
-void deleteFile(fs::FS &fs, const char * path) {
+void deleteFile(fs::FS & fs, const char * path) {
   Serial.printf("Deleting file: %s\r\n", path);
   if (fs.remove(path)) {
     Serial.println("- file deleted");
@@ -323,7 +290,7 @@ void deleteFile(fs::FS &fs, const char * path) {
   }
 }
 
-String processor(const String& var) { //"var" is not a descriptive variable name
+String processor(const String & var) { //"var" is not a descriptive variable name
   if (var == "DATETIME") {
     String datetime = getTimeAsString() + " " + getDateAsString();
     return datetime;
@@ -332,4 +299,24 @@ String processor(const String& var) { //"var" is not a descriptive variable name
     return String(WaterVal);
   }
   return String();
+}
+
+String getDateAsString() {
+  DateTime now = rtc.now();
+
+  // Converts the date into a human-readable format.
+  char humanReadableDate[20];
+  sprintf(humanReadableDate, "%02d/%02d/%02d", now.day(), now.month(), now.year());
+
+  return humanReadableDate;
+}
+
+String getTimeAsString() {
+  DateTime now = rtc.now();
+
+  // Converts the time into a human-readable format.
+  char humanReadableTime[20];
+  sprintf(humanReadableTime, "%02d:%02d:%02d", now.hour(), now.minute(), now.second());
+
+  return humanReadableTime;
 }
