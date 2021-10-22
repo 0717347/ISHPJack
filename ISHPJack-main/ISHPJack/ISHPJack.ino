@@ -28,7 +28,7 @@ char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursd
 #include <Adafruit_MotorShield.h>
 Adafruit_MotorShield AFMS = Adafruit_MotorShield();
 Adafruit_DCMotor *myMotor = AFMS.getMotor(4);
-
+bool pumpIsRunning = false
 
 // Wifi
 #define FORMAT_SPIFFS_IF_FAILED true
@@ -126,197 +126,215 @@ void setup() {
     Serial.println("output");
     request->send(SPIFFS, "/logEvents.csv", "text/html", true);
   });
+  server.on("/pumpon", HTTP_GET, [](AsyncWebServerRequest * request) {
+    Serial.println("index");
+    request->send(SPIFFS, "/index.html", "text/html");
+  });
+  //Handle webserver pump controls
+  server.on("/pumpon", HTTP_GET, [](AsyncWebServerRequest * request) {
+    if (!request->authenticate(http_username, http_password))
+        return request->requestAuthentication()
+        myMotor->run(FORWARD)
+        pumpIsRunning = true
+        request->send(SPIFFS, "/dashboard.html:","text.html")
+  });
+    server.on("/pumpoff", HTTP_GET, [](AsyncWebServerRequest * request) {
+    if (!request->authenticate(http_username, http_password)
+          return request->requestAuthentication()
+          myMotor->run(RELEASE)
+  });
 }
 
 void loop() {
   updateScreen();
-  readSoil();
-  // server.handleClient();
-}
-
-void updateScreen() {
-  // Gets the current date and time, and writes it to the Eink display.
-  String currentTime = getDateTimeAsString();
-
-  drawText("The Current Time and\nDate is", EPD_BLACK, 2, 0, 0);
-
-  // writes the current time on the bottom half of the display (y is height)
-  drawText(currentTime, EPD_BLACK, 2, 0, 75);
-
-  // Draws a line from the leftmost pixel, on line 50, to the rightmost pixel (250) on line 50.
-  display.drawLine(0, 50, 250, 50, EPD_BLACK);
-  display.display();
-
-  // waits 180 seconds (3 minutes) as per guidelines from adafruit. This delays loop() by 3 minutes. Hmm.
-  delay(180000);
-}
-
-void drawText(String text, uint16_t color, int textSize, int x, int y) {
-  display.setCursor(x, y);
-  display.setTextColor(color);
-  display.setTextSize(textSize);
-  display.setTextWrap(true);
-  display.print(text);
-
-}
-
-String getDateTimeAsString() {
-  DateTime now = rtc.now();
-
-  //Prints the date and time to the Serial monitor for debugging.
-  /*
-    Serial.print(now.year(), DEC);
-    Serial.print('/');
-    Serial.print(now.month(), DEC);
-    Serial.print('/');
-    Serial.print(now.day(), DEC);
-    Serial.print(" (");
-    Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
-    Serial.print(") ");
-    Serial.print(now.hour(), DEC);
-    Serial.print(':');
-    Serial.print(now.minute(), DEC);
-    Serial.print(':');
-    Serial.print(now.second(), DEC);
-    Serial.println();
-  */
-
-  // Converts the date and time into a human-readable format.
-  char humanReadableDate[20];
-  sprintf(humanReadableDate, "%02d:%02d:%02d %02d/%02d/%02d",  now.hour(), now.minute(), now.second(), now.day(), now.month(), now.year());
-
-  return humanReadableDate;
-}
-
-//Function to read the moisture value of the sensor, then print it to the serial monitor
-//Should probably be logged as well
-void readSoil() {
-  WaterVal = analogRead(SoilPin);
-  delay(1200);
-  Serial.print("Soil Moisture = ");
-  //get soil moisture value from the function below and print it
-  Serial.println(WaterVal);
-}
-
-
-
-void logEvent(String dataToLog) {
-  /*
-     Log entries to a file stored in SPIFFS partition on the ESP32.
-  */
-  // Get the updated/current time
-  DateTime rightNow = rtc.now();
-  char csvReadableDate[25];
-  sprintf(csvReadableDate, "%02d,%02d,%02d,%02d,%02d,%02d,",  rightNow.year(), rightNow.month(), rightNow.day(), rightNow.hour(), rightNow.minute(), rightNow.second());
-
-  String logTemp = csvReadableDate + dataToLog + "\n"; // Add the data to log onto the end of the date/time
-
-  const char * logEntry = logTemp.c_str(); //convert the logtemp to a char * variable
-
-  //Add the log entry to the end of logevents.csv
-  appendFile(SPIFFS, "/logEvents.csv", logEntry);
-
-  // Output the logEvents - FOR DEBUG ONLY. Comment out to avoid spamming the serial monitor.
-  //  readFile(SPIFFS, "/logEvents.csv");
-
-  Serial.print("\nEvent Logged: ");
-  Serial.println(logEntry);
-}
-
-// SPIFFS file functions
-void readFile(fs::FS & fs, const char * path) {
-  Serial.printf("Reading file: %s\r\n", path);
-
-  File file = fs.open(path);
-  if (!file || file.isDirectory()) {
-    Serial.println("- failed to open file for reading");
-    return;
+    readSoil();
+    // server.handleClient();
   }
 
-  Serial.println("- read from file:");
-  while (file.available()) {
-    Serial.write(file.read());
+  void updateScreen() {
+    // Gets the current date and time, and writes it to the Eink display.
+    String currentTime = getDateTimeAsString();
+
+    drawText("The Current Time and\nDate is", EPD_BLACK, 2, 0, 0);
+
+    // writes the current time on the bottom half of the display (y is height)
+    drawText(currentTime, EPD_BLACK, 2, 0, 75);
+
+    // Draws a line from the leftmost pixel, on line 50, to the rightmost pixel (250) on line 50.
+    display.drawLine(0, 50, 250, 50, EPD_BLACK);
+    display.display();
+
+    // waits 180 seconds (3 minutes) as per guidelines from adafruit. This delays loop() by 3 minutes. Hmm.
+    delay(180000);
   }
-  file.close();
-}
 
-void writeFile(fs::FS & fs, const char * path, const char * message) {
-  Serial.printf("Writing file: %s\r\n", path);
+  void drawText(String text, uint16_t color, int textSize, int x, int y) {
+    display.setCursor(x, y);
+    display.setTextColor(color);
+    display.setTextSize(textSize);
+    display.setTextWrap(true);
+    display.print(text);
 
-  File file = fs.open(path, FILE_WRITE);
-  if (!file) {
-    Serial.println("- failed to open file for writing");
-    return;
   }
-  if (file.print(message)) {
-    Serial.println("- file written");
-  } else {
-    Serial.println("- write failed");
+
+  String getDateTimeAsString() {
+    DateTime now = rtc.now();
+
+    //Prints the date and time to the Serial monitor for debugging.
+    /*
+      Serial.print(now.year(), DEC);
+      Serial.print('/');
+      Serial.print(now.month(), DEC);
+      Serial.print('/');
+      Serial.print(now.day(), DEC);
+      Serial.print(" (");
+      Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
+      Serial.print(") ");
+      Serial.print(now.hour(), DEC);
+      Serial.print(':');
+      Serial.print(now.minute(), DEC);
+      Serial.print(':');
+      Serial.print(now.second(), DEC);
+      Serial.println();
+    */
+
+    // Converts the date and time into a human-readable format.
+    char humanReadableDate[20];
+    sprintf(humanReadableDate, "%02d:%02d:%02d %02d/%02d/%02d",  now.hour(), now.minute(), now.second(), now.day(), now.month(), now.year());
+
+    return humanReadableDate;
   }
-  file.close();
-}
 
-void appendFile(fs::FS & fs, const char * path, const char * message) {
-  Serial.printf("Appending to file: %s\r\n", path);
-
-  File file = fs.open(path, FILE_APPEND);
-  if (!file) {
-    Serial.println("- failed to open file for appending");
-    return;
+  //Function to read the moisture value of the sensor, then print it to the serial monitor
+  //Should probably be logged as well
+  void readSoil() {
+    WaterVal = analogRead(SoilPin);
+    delay(1200);
+    Serial.print("Soil Moisture = ");
+    //get soil moisture value from the function below and print it
+    Serial.println(WaterVal);
+    
   }
-  if (file.print(message)) {
-    Serial.println("- message appended");
-  } else {
-    Serial.println("- append failed");
+
+
+
+  void logEvent(String dataToLog) {
+    /*
+       Log entries to a file stored in SPIFFS partition on the ESP32.
+    */
+    // Get the updated/current time
+    DateTime rightNow = rtc.now();
+    char csvReadableDate[25];
+    sprintf(csvReadableDate, "%02d,%02d,%02d,%02d,%02d,%02d,",  rightNow.year(), rightNow.month(), rightNow.day(), rightNow.hour(), rightNow.minute(), rightNow.second());
+
+    String logTemp = csvReadableDate + dataToLog + "\n"; // Add the data to log onto the end of the date/time
+
+    const char * logEntry = logTemp.c_str(); //convert the logtemp to a char * variable
+
+    //Add the log entry to the end of logevents.csv
+    appendFile(SPIFFS, "/logEvents.csv", logEntry);
+
+    // Output the logEvents - FOR DEBUG ONLY. Comment out to avoid spamming the serial monitor.
+    //  readFile(SPIFFS, "/logEvents.csv");
+
+    Serial.print("\nEvent Logged: ");
+    Serial.println(logEntry);
   }
-  file.close();
-}
 
-void renameFile(fs::FS & fs, const char * path1, const char * path2) {
-  Serial.printf("Renaming file %s to %s\r\n", path1, path2);
-  if (fs.rename(path1, path2)) {
-    Serial.println("- file renamed");
-  } else {
-    Serial.println("- rename failed");
+  // SPIFFS file functions
+  void readFile(fs::FS & fs, const char * path) {
+    Serial.printf("Reading file: %s\r\n", path);
+
+    File file = fs.open(path);
+    if (!file || file.isDirectory()) {
+      Serial.println("- failed to open file for reading");
+      return;
+    }
+
+    Serial.println("- read from file:");
+    while (file.available()) {
+      Serial.write(file.read());
+    }
+    file.close();
   }
-}
 
-void deleteFile(fs::FS & fs, const char * path) {
-  Serial.printf("Deleting file: %s\r\n", path);
-  if (fs.remove(path)) {
-    Serial.println("- file deleted");
-  } else {
-    Serial.println("- delete failed");
+  void writeFile(fs::FS & fs, const char * path, const char * message) {
+    Serial.printf("Writing file: %s\r\n", path);
+
+    File file = fs.open(path, FILE_WRITE);
+    if (!file) {
+      Serial.println("- failed to open file for writing");
+      return;
+    }
+    if (file.print(message)) {
+      Serial.println("- file written");
+    } else {
+      Serial.println("- write failed");
+    }
+    file.close();
   }
-}
 
-String processor(const String & var) { //"var" is not a descriptive variable name
-  if (var == "DATETIME") {
-    String datetime = getTimeAsString() + " " + getDateAsString();
-    return datetime;
+  void appendFile(fs::FS & fs, const char * path, const char * message) {
+    Serial.printf("Appending to file: %s\r\n", path);
+
+    File file = fs.open(path, FILE_APPEND);
+    if (!file) {
+      Serial.println("- failed to open file for appending");
+      return;
+    }
+    if (file.print(message)) {
+      Serial.println("- message appended");
+    } else {
+      Serial.println("- append failed");
+    }
+    file.close();
   }
-  if (var == "MOISTURE") {
-    return String(WaterVal);
+
+  void renameFile(fs::FS & fs, const char * path1, const char * path2) {
+    Serial.printf("Renaming file %s to %s\r\n", path1, path2);
+    if (fs.rename(path1, path2)) {
+      Serial.println("- file renamed");
+    } else {
+      Serial.println("- rename failed");
+    }
   }
-  return String();
-}
 
-String getDateAsString() {
-  DateTime now = rtc.now();
+  void deleteFile(fs::FS & fs, const char * path) {
+    Serial.printf("Deleting file: %s\r\n", path);
+    if (fs.remove(path)) {
+      Serial.println("- file deleted");
+    } else {
+      Serial.println("- delete failed");
+    }
+  }
 
-  // Converts the date into a human-readable format.
-  char humanReadableDate[20];
-  sprintf(humanReadableDate, "%02d/%02d/%02d", now.day(), now.month(), now.year());
+  String processor(const String & var) { //"var" is not a descriptive variable name
+    if (var == "DATETIME") {
+      String datetime = getTimeAsString() + " " + getDateAsString();
+      return datetime;
+    }
+    if (var == "MOISTURE") {
+      return String(WaterVal);
+    }
+    return String();
+  }
 
-  return humanReadableDate;
-}
+  String getDateAsString() {
+    DateTime now = rtc.now();
 
-String getTimeAsString() {
-  DateTime now = rtc.now();
+    // Converts the date into a human-readable format.
+    char humanReadableDate[20];
+    sprintf(humanReadableDate, "%02d/%02d/%02d", now.day(), now.month(), now.year());
 
-  // Converts the time into a human-readable format.
-  char humanReadableTime[20];
-  sprintf(humanReadableTime, "%02d:%02d:%02d", now.hour(), now.minute(), now.second());
+    return humanReadableDate;
+  }
 
-  return humanReadableTime;
-}
+  String getTimeAsString() {
+    DateTime now = rtc.now();
+
+    // Converts the time into a human-readable format.
+    char humanReadableTime[20];
+    sprintf(humanReadableTime, "%02d:%02d:%02d", now.hour(), now.minute(), now.second());
+
+    return humanReadableTime;
+  }
