@@ -1,4 +1,5 @@
 
+
 /***************************************************
   Adafruit invests time and resources providing this open source code,
   please support Adafruit and open-source hardware by purchasing
@@ -8,10 +9,14 @@
   MIT license, all text above must be included in any redistribution
  ****************************************************/
 
+#define FORMAT_SPIFFS_IF_FAILED true
+
 //The moisture value picked up by the moisture sensor
 int WaterVal = 0;
 //The pin that the soil moisture sensor is connected to
 const int SoilPin = 12;
+//set the ideal moisture value of the soil
+#define OPTIMAL_WATER_VALUE 4200
 // RTC
 #include "RTClib.h"
 
@@ -30,18 +35,20 @@ Adafruit_MotorShield AFMS = Adafruit_MotorShield();
 Adafruit_DCMotor *myMotor = AFMS.getMotor(4);
 bool pumpIsRunning = false
 
-// Wifi
+                     // Wifi
 #define FORMAT_SPIFFS_IF_FAILED true
 
+                     // Wifi & Webserver
 // Wifi & Webserver
 #include "WiFi.h"
 #include "SPIFFS.h"
+#include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include "wifiConfig.h"
 AsyncWebServer server(80);
 
-const char* WebsiteUsername = "Password";
-const char* WebsitePassword = "Username";
+const char* http_username = "Password";
+const char* http_password = "Username";
 
 String loginIndex, serverIndex;
 
@@ -57,22 +64,6 @@ String loginIndex, serverIndex;
 // 2.13" Monochrome displays with 250x122 pixels and SSD1675 chipset
 ThinkInk_213_Mono_B72 display(EPD_DC, EPD_RESET, EPD_CS, SRAM_CS, EPD_BUSY);
 
-//Set up the SD card
-/*
-  void setupSD() {
-  if (!SD.begin()) {
-    Serial.println("Card Mount Failed");
-    return;
-  }
-  uint8_t cardType = SD.cardType();
-
-  if (cardType == CARD_NONE) {
-    Serial.println("No SD card attached");
-    return;
-  }
-  Serial.println("SD Started");
-  }
-*/
 void setup() {
   //Tell the board to accept input from the soil moisture sensor
   pinMode(SoilPin, INPUT);
@@ -98,55 +89,90 @@ void setup() {
   display.begin(THINKINK_MONO);
   display.clearBuffer();
 
-  // Connect to WiFi network
+ 
   WiFi.begin(ssid, password);
-  Serial.println("");
 
-  // Wait for connection
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+    delay(1000);
+    Serial.println("Connecting to WiFi..");
   }
   Serial.println();
-  Serial.print("Connected to ");
-  Serial.println(ssid);
+  Serial.print("Connected to the Internet");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
-
-
+}
+  String processor(const String & var) { //"var" is not a descriptive variable name
+    if (var == "DATETIME") {
+      String datetime = getTimeAsString() + " " + getDateAsString();
+      return datetime;
+    }
+    if (var == "MOISTURE") {
+      return String(WaterVal);
+    }
+    return String();
+  }
   server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
-    Serial.println("index");
+    if (!request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     request->send(SPIFFS, "/index.html", "text/html");
   });
   server.on("/dashboard", HTTP_GET, [](AsyncWebServerRequest * request) {
-    Serial.println("dashboard");
-    request->send(SPIFFS, "/dashboard.html", "text/html");
+    if (!request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send(SPIFFS, "/dashboard.html", "text/html", false, processor);
   });
+
+  //LED Control
+  server.on("/LEDOn", HTTP_GET, [](AsyncWebServerRequest * request) {
+    if (!request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    digitalWrite(LED_BUILTIN, HIGH);
+    request->send(SPIFFS, "/dashboard.html", "text/html", false, processor);
+  });
+  server.on("/LEDOff", HTTP_GET, [](AsyncWebServerRequest * request) {
+    if (!request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    digitalWrite(LED_BUILTIN, LOW);
+    request->send(SPIFFS, "/dashboard.html", "text/html", false, processor);
+  });
+
+  // Pump Control
+  server.on("/PumpOn", HTTP_GET, [](AsyncWebServerRequest * request) {
+    if (!request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    myMotor->run(FORWARD); // May need to change to BACKWARD
+    pumpIsRunning = true;
+    request->send(SPIFFS, "/dashboard.html", "text/html", false, processor);
+  });
+
+  server.on("/PumpAuto", HTTP_GET, [](AsyncWebServerRequest * request) {
+    if (!request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    for (int WaterVal in 0 to OPTIMAL_WATER_VALUE) {
+      myMotor->run(FORWARD);
+      pumpIsRunning = true;
+      request->send(SPIFFS, "/dashboard.html", "text/html", false, processor);
+    }
+  });
+
+  server.on("/PumpOff", HTTP_GET, [](AsyncWebServerRequest * request) {
+    if (!request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    myMotor->run(RELEASE);
+    pumpIsRunning = false;
+    request->send(SPIFFS, "/dashboard.html", "text/html", false, processor);
+  });
+
   server.on("/logOutput", HTTP_GET, [](AsyncWebServerRequest * request) {
     Serial.println("output");
     request->send(SPIFFS, "/logEvents.csv", "text/html", true);
   });
-  server.on("/pumpon", HTTP_GET, [](AsyncWebServerRequest * request) {
-    Serial.println("index");
-    request->send(SPIFFS, "/index.html", "text/html");
-  });
-  //Handle webserver pump controls
-  server.on("/pumpon", HTTP_GET, [](AsyncWebServerRequest * request) {
-    if (!request->authenticate(http_username, http_password))
-        return request->requestAuthentication()
-        myMotor->run(FORWARD)
-        pumpIsRunning = true
-        request->send(SPIFFS, "/dashboard.html:","text.html")
-  });
-    server.on("/pumpoff", HTTP_GET, [](AsyncWebServerRequest * request) {
-    if (!request->authenticate(http_username, http_password)
-          return request->requestAuthentication()
-          myMotor->run(RELEASE)
-  });
-}
 
-void loop() {
-  updateScreen();
+
+
+
+  void loop() {
+    updateScreen();
     readSoil();
     // server.handleClient();
   }
@@ -213,7 +239,7 @@ void loop() {
     Serial.print("Soil Moisture = ");
     //get soil moisture value from the function below and print it
     Serial.println(WaterVal);
-    
+
   }
 
 
@@ -308,16 +334,6 @@ void loop() {
     }
   }
 
-  String processor(const String & var) { //"var" is not a descriptive variable name
-    if (var == "DATETIME") {
-      String datetime = getTimeAsString() + " " + getDateAsString();
-      return datetime;
-    }
-    if (var == "MOISTURE") {
-      return String(WaterVal);
-    }
-    return String();
-  }
 
   String getDateAsString() {
     DateTime now = rtc.now();
